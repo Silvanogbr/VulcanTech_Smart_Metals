@@ -1,5 +1,6 @@
 """Treina e compara dois modelos simples para classificar o tipo de falha."""
 from pathlib import Path
+import json
 
 import joblib
 import pandas as pd
@@ -42,12 +43,18 @@ def main():
         ),
     }
     resultados = []
+    relatorios = {}
     for nome, modelo in modelos.items():
         modelo.fit(X_treino, y_treino)
         predicao = modelo.predict(X_teste)
         relatorio = classification_report(y_teste, predicao, output_dict=True, zero_division=0)
         recall_falhas = sum(relatorio[str(classe)]["recall"] for classe in (1, 2, 3)) / 3
         resultados.append((recall_falhas, nome, modelo, predicao))
+        relatorios[nome] = {
+            "recall_medio_falhas": recall_falhas,
+            "recall_por_classe": {str(classe): relatorio[str(classe)]["recall"] for classe in range(4)},
+            "matriz_confusao": confusion_matrix(y_teste, predicao, labels=[0, 1, 2, 3]).tolist(),
+        }
         print(f"\n{nome} - matriz de confusão (linhas=reais, colunas=previstas):")
         print(confusion_matrix(y_teste, predicao, labels=[0, 1, 2, 3]))
         print(classification_report(y_teste, predicao, zero_division=0))
@@ -68,6 +75,19 @@ def main():
     artefatos = RAIZ / "modelos"
     artefatos.mkdir(exist_ok=True)
     joblib.dump({"modelo": melhor_modelo, "colunas": colunas}, artefatos / "modelo_falhas.joblib")
+    relatorio_final = {
+        "modelo": nome,
+        "recall_medio_falhas": relatorios[nome]["recall_medio_falhas"],
+        "recall_por_classe": relatorios[nome]["recall_por_classe"],
+        "matriz_confusao": relatorios[nome]["matriz_confusao"],
+        "atributos_importantes": [
+            {"nome": nome_atributo, "importancia": float(importancia)}
+            for nome_atributo, importancia in pd.Series(melhor_modelo.feature_importances_, index=colunas)
+            .sort_values(ascending=False).head(8).items()
+        ],
+        "modelos_comparados": {k: v["recall_medio_falhas"] for k, v in relatorios.items()},
+    }
+    (artefatos / "relatorio_modelo.json").write_text(json.dumps(relatorio_final, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Modelo exportado em {artefatos / 'modelo_falhas.joblib'}")
 
 

@@ -1,5 +1,6 @@
 services:
   api:
     build: .
+    image: vulcantech-smart-metals
     ports:
-      - "8000:8000"
+      - "8501:8000"

@@ -3,6 +3,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src ./src
+COPY web ./web
+COPY assets ./assets
 COPY dados_sensores_vulcantech.csv ./dados_sensores_vulcantech.csv
 RUN python src/treinar_modelo.py
 EXPOSE 8000

@@ -45,7 +45,7 @@ def carregar_e_preparar(caminho_csv: str | Path) -> tuple[pd.DataFrame, pd.DataF
         z_score = (dados[coluna] - media) / desvio
         dados.loc[z_score.abs() > 3, coluna] = pd.NA
 
-    # Interpolação temporal dentro de cada célula; limite de até 2 amostras (10 min).
+    # Interpolação temporal dentro de cada célula, limitada a 2 amostras consecutivas.
     dados = dados.set_index("timestamp")
     for coluna in SENSORES:
         dados[coluna] = dados.groupby("id_celula", group_keys=False)[coluna].apply(
