@@ -8,11 +8,12 @@ formulario.addEventListener('submit', async (evento) => {
   mensagemLogin.textContent = 'Preparando o acesso demonstrativo…';
 
   try {
-    const resposta = await fetch('/demo-login', {
+    const resposta = await window.vulcanFetch('/demo-login', {
       method: 'POST',
       body: new FormData(formulario)
     });
     if (!resposta.ok) throw new Error('Não foi possível iniciar a sessão. Tente novamente.');
+    localStorage.setItem('vulcantech-demo-access', 'ok');
     window.location.replace('/dashboard');
   } catch (erro) {
     mensagemLogin.textContent = erro.message;

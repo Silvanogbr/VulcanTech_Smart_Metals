@@ -33,10 +33,10 @@ O projeto reúne as etapas pedidas no enunciado:
 
 - **Visão geral:** filtros por célula, liga e período; quantidade de registros; percentual de falhas; gráficos por classe/célula; médias por liga; avaliação do modelo.
 - **Sensores:** série temporal por variável e célula, faixa de referência, resumo e download dos registros filtrados em CSV.
-- **Inspeção de solda:** envio de uma imagem JPG ou PNG, seleção opcional da região do cordão, mapa falso-colorido de contraste/textura e triagem heurística.
+- **Inspeção de solda:** envio de uma imagem JPG ou PNG, seleção opcional da região do cordão, mapa falso-colorido de contraste/textura, triagem heurística e impressão/salvamento do resultado em PDF.
 - **API:** inferência tabular em `/predict`, análise de imagem em `/inspect/weld` e documentação interativa em `/docs`.
 
-O site foi escrito em HTML, CSS e JavaScript e é servido pelo FastAPI. Não requer Streamlit nem um processo Node.js.
+O site foi escrito em HTML, CSS e JavaScript. Para demonstrar a API fora do ar sem fechar as páginas, execute o servidor do site (`web_server.py`) separado do FastAPI. Não requer Streamlit nem um processo Node.js.
 
 ## Dados de entrada
 
@@ -99,21 +99,30 @@ Se quiser repetir o tratamento sem abrir o notebook, execute no PowerShell:
 .\.venv\Scripts\python.exe src/pipeline.py
 ```
 
-Inicie o site e a API:
+### Execução local com site e API separados
+
+Abra **dois terminais** na pasta do projeto. Assim, você pode parar a API e manter a página aberta para ver o indicador vermelho.
+
+**Terminal 1 — API:**
 
 ```powershell
-.\.venv\Scripts\uvicorn.exe api:app --app-dir src --reload
+.\.venv\Scripts\python.exe -m uvicorn api:app --app-dir src --reload --host 127.0.0.1 --port 8000
 ```
 
-Abra estas páginas no navegador:
+**Terminal 2 — site:**
 
-- Capa: <http://127.0.0.1:8000/>
-- Visão geral: <http://127.0.0.1:8000/dashboard>
-- Sensores: <http://127.0.0.1:8000/sensors>
-- Inspeção visual: <http://127.0.0.1:8000/inspection>
-- Documentação Swagger: <http://127.0.0.1:8000/docs>
+```powershell
+.\.venv\Scripts\python.exe web_server.py --host 127.0.0.1 --port 5500
+```
 
-Para encerrar o servidor, volte ao terminal e pressione `Ctrl+C`. Se a porta 8000 estiver ocupada, inicie com `--port 8001` e acesse a mesma rota na nova porta.
+Acesse <http://127.0.0.1:5500>. Entre com qualquer e-mail e senha preenchidos; o acesso é demonstrativo. O site consulta a API em `http://127.0.0.1:8000`.
+
+Para simular a API indisponível, **mantenha a página aberta** e pressione `Ctrl+C` no Terminal 1. O indicador ficará vermelho em até 10 segundos. O site continua visível, mas recursos que dependem da API ficam indisponíveis. Para reativar, inicie novamente o comando do Terminal 1. Para encerrar o site, pressione `Ctrl+C` no Terminal 2.
+
+A API também serve as páginas diretamente na porta 8000, mas nesse modo site e API param juntos. Use a porta 5500 para demonstrar o estado offline.
+
+Login e capa depois de entrar: <http://127.0.0.1:5500/login> e <http://127.0.0.1:5500/>.
+Swagger da API: <http://127.0.0.1:8000/docs>.
 
 ### Arquivos criados na execução
 
@@ -140,7 +149,7 @@ Permite selecionar célula, liga, variável e período. O gráfico mostra os val
 
 ### Inspeção de solda
 
-Selecione uma imagem JPG ou PNG. Depois, arraste sobre ela para marcar a região a analisar; se não marcar uma área, a imagem inteira será usada. O resultado apresenta a imagem com regiões de contraste destacadas, contornos candidatos e uma indicação preliminar:
+Selecione uma imagem JPG ou PNG. Depois, arraste sobre ela para marcar a região a analisar; se não marcar uma área, a imagem inteira será usada. O resultado apresenta a imagem com regiões de contraste destacadas, contornos candidatos e uma indicação preliminar. Use **Imprimir / Salvar em PDF** para gerar um relatório com as imagens, métricas, motivos e aviso de limitações. Na janela do navegador, escolha “Salvar como PDF”. O relatório é montado no navegador e não é armazenado no servidor:
 
 - **Revisar a solda:** foram encontrados vários contornos arredondados ou a área estimada ultrapassou o limite inicial.
 - **Sem alerta visual pelo filtro:** o filtro não encontrou esses sinais em quantidade elevada.
@@ -265,13 +274,13 @@ Para regenerar as duas amostras de teste:
 
 ## Docker
 
-O Dockerfile instala as dependências, treina o modelo durante a construção da imagem e inicia o FastAPI. Na raiz do projeto:
+O Dockerfile instala as dependências, prepara os dados e treina o modelo durante a construção. O Compose inicia a API e o site em serviços separados:
 
 ```bash
 docker compose up --build
 ```
 
-Abra <http://localhost:8501>. A documentação da API fica em <http://localhost:8501/docs>. Para parar os contêineres, use `Ctrl+C` ou execute `docker compose down` em outro terminal.
+Abra o site em <http://localhost:8501>. A API e o Swagger ficam em <http://localhost:8000> e <http://localhost:8000/docs>. Para parar somente a API e manter o site ativo, use `docker compose stop api`; para reativar, use `docker compose start api`. Para encerrar tudo, pressione `Ctrl+C` ou execute `docker compose down`.
 
 ## Estrutura dos arquivos
 
@@ -295,8 +304,11 @@ Abra <http://localhost:8501>. A documentação da API fica em <http://localhost:
 │   ├── dashboard.html       # Visão geral
 │   ├── sensors.html         # Séries temporais
 │   ├── inspection.html      # Upload e resultado visual
+│   ├── config.js            # Endereço da API em cada modo
+│   ├── access.js            # Acesso demonstrativo no site separado
 │   ├── *.js                 # Interação das páginas
 │   └── styles.css
+├── web_server.py            # Servidor independente das páginas
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt

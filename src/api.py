@@ -11,6 +11,7 @@ import pandas as pd
 from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from pipeline import SENSORES, carregar_e_preparar
@@ -25,15 +26,13 @@ NOMES_FALHA = {0: "Normal", 1: "Desgaste de ferramenta", 2: "Falha de refrigera√
 WEB = RAIZ / "web"
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 app.mount("/assets", StaticFiles(directory=RAIZ / "assets"), name="assets")
-
-
 @app.middleware("http")
 async def proteger_site_com_login_demo(request, call_next):
     caminho = request.url.path
     token = request.cookies.get("vulcantech_demo")
     autenticado = token in SESSOES_DEMO
 
-    if caminho == "/demo-login":
+    if request.method == "OPTIONS" or caminho in ("/demo-login", "/health"):
         return await call_next(request)
     if caminho.startswith(("/static/", "/assets/")):
         return await call_next(request)
@@ -46,6 +45,15 @@ async def proteger_site_com_login_demo(request, call_next):
             return JSONResponse({"detail": "Fa√ßa o acesso demonstrativo para continuar."}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     return await call_next(request)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500", "http://localhost:5500", "http://127.0.0.1:8501", "http://localhost:8501"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/demo-login")
