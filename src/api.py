@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from typing import Literal
+import secrets
 
 import cv2
 import joblib
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from pipeline import SENSORES, carregar_e_preparar
@@ -19,15 +20,57 @@ RAIZ = Path(__file__).resolve().parents[1]
 ARQUIVO_MODELO = RAIZ / "modelos" / "modelo_falhas.joblib"
 ARQUIVO_RELATORIO = RAIZ / "modelos" / "relatorio_modelo.json"
 app = FastAPI(title="VulcanTech - demonstração de manutenção preditiva")
+SESSOES_DEMO: set[str] = set()
 NOMES_FALHA = {0: "Normal", 1: "Desgaste de ferramenta", 2: "Falha de refrigeração", 3: "Desalinhamento ou trinca"}
 WEB = RAIZ / "web"
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 app.mount("/assets", StaticFiles(directory=RAIZ / "assets"), name="assets")
 
 
+@app.middleware("http")
+async def proteger_site_com_login_demo(request, call_next):
+    caminho = request.url.path
+    token = request.cookies.get("vulcantech_demo")
+    autenticado = token in SESSOES_DEMO
+
+    if caminho == "/demo-login":
+        return await call_next(request)
+    if caminho.startswith(("/static/", "/assets/")):
+        return await call_next(request)
+    if caminho == "/login":
+        if autenticado:
+            return RedirectResponse("/dashboard", status_code=303)
+        return await call_next(request)
+    if not autenticado:
+        if caminho.startswith("/api/"):
+            return JSONResponse({"detail": "Faça o acesso demonstrativo para continuar."}, status_code=401)
+        return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+@app.post("/demo-login")
+def demo_login(email: str = Form(...), senha: str = Form(...)):
+    # O acesso é cenográfico: exige o envio do formulário, mas não valida conta real.
+    if not email.strip() or not senha.strip():
+        raise HTTPException(status_code=400, detail="Preencha e-mail e senha para continuar.")
+    token = secrets.token_urlsafe(32)
+    SESSOES_DEMO.add(token)
+    resposta = JSONResponse({"ok": True})
+    resposta.set_cookie(
+        "vulcantech_demo", token, httponly=True, samesite="lax",
+        max_age=8 * 60 * 60, path="/"
+    )
+    return resposta
+
+
 @app.get("/")
 def dashboard():
     return FileResponse(WEB / "index.html")
+
+
+@app.get("/login")
+def login_page():
+    return FileResponse(WEB / "login.html")
 
 
 @app.get("/dashboard")
@@ -47,7 +90,11 @@ def inspection_page():
 
 @app.get("/api/dashboard-data")
 def dashboard_data():
-    dados, _ = carregar_e_preparar(RAIZ / "dados_sensores_vulcantech.csv")
+    arquivo_preparado = RAIZ / "dados_processados" / "sensores_preparados.csv"
+    if arquivo_preparado.exists():
+        dados = pd.read_csv(arquivo_preparado, parse_dates=["timestamp"])
+    else:
+        dados, _ = carregar_e_preparar(RAIZ / "dados_sensores_vulcantech.csv")
     original = pd.read_csv(RAIZ / "dados_sensores_vulcantech.csv")
     missing_rate = 100 * original[SENSORES].isna().sum().sum() / (len(original) * len(SENSORES))
     colunas = ["timestamp", "id_celula", "liga_metalica", *SENSORES, "iem", "tipo_falha"]

@@ -22,7 +22,12 @@ COLUNAS = [
 
 
 def main():
-    dados, _ = carregar_e_preparar(RAIZ / "dados_sensores_vulcantech.csv")
+    arquivo_preparado = RAIZ / "dados_processados" / "sensores_preparados.csv"
+    if arquivo_preparado.exists():
+        dados = pd.read_csv(arquivo_preparado, parse_dates=["timestamp"])
+        print(f"Usando dados preparados: {arquivo_preparado}")
+    else:
+        dados, _ = carregar_e_preparar(RAIZ / "dados_sensores_vulcantech.csv")
     # Codificação simples para as duas colunas categóricas.
     dados["celula_codigo"] = LabelEncoder().fit_transform(dados["id_celula"])
     dados["liga_codigo"] = LabelEncoder().fit_transform(dados["liga_metalica"])

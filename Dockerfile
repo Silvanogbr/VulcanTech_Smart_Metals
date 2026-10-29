@@ -6,6 +6,6 @@ COPY src ./src
 COPY web ./web
 COPY assets ./assets
 COPY dados_sensores_vulcantech.csv ./dados_sensores_vulcantech.csv
-RUN python src/treinar_modelo.py
+RUN python src/pipeline.py && python src/treinar_modelo.py
 EXPOSE 8000
 CMD ["uvicorn", "api:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,4 +1,4 @@
-# VulcanTech Smart Metals
+# VulcanTech Smart Metals S.A.
 
 Projeto integrador demonstrativo de análise de sensores industriais, manutenção preditiva e inspeção visual de soldas. O sistema usa o CSV fornecido, treina modelos de classificação e disponibiliza um site local com páginas separadas para consultar os dados.
 
@@ -10,6 +10,7 @@ Projeto integrador demonstrativo de análise de sensores industriais, manutenç�
 - [O que o projeto faz](#o-que-o-projeto-faz)
 - [Dados de entrada](#dados-de-entrada)
 - [Instalação e execução no Windows](#instalação-e-execução-no-windows)
+- [Notebook de tratamento](#notebook-de-tratamento)
 - [Páginas do site](#páginas-do-site)
 - [API](#api)
 - [Pipeline de dados](#pipeline-de-dados)
@@ -71,16 +72,31 @@ No arquivo atual, as classes estão desbalanceadas: 8.557 registros normais, 470
 Abra o PowerShell na pasta do projeto. Python 3.10 ou superior é necessário.
 
 ```powershell
-py -3.11 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Prepare os dados e treine o modelo:
+## Notebook de tratamento
+
+Abra [`notebooks/01_tratamento_dados.ipynb`](notebooks/01_tratamento_dados.ipynb) no VS Code, selecione o kernel Python do ambiente `.venv` e use **Run All / Executar tudo**. O notebook apresenta cada etapa e grava `sensores_preparados.csv` e `ausencias_por_celula_liga.csv` em `dados_processados/`.
+
+Para instalar também o kernel usado pelo notebook, use o arquivo de dependências de desenvolvimento:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-notebook.txt
+```
+
+Depois, treine e compare os modelos:
+
+```powershell
+.\.venv\Scripts\python.exe src/treinar_modelo.py
+```
+
+Se quiser repetir o tratamento sem abrir o notebook, execute no PowerShell:
 
 ```powershell
 .\.venv\Scripts\python.exe src/pipeline.py
-.\.venv\Scripts\python.exe src/treinar_modelo.py
 ```
 
 Inicie o site e a API:
@@ -184,7 +200,7 @@ A resposta inclui `avaliacao`, `motivos`, contagens e `mapa_visual_base64`, uma 
 
 ## Pipeline de dados
 
-`src/pipeline.py` executa estas etapas:
+O notebook [`notebooks/01_tratamento_dados.ipynb`](notebooks/01_tratamento_dados.ipynb) é a versão explicada e interativa do tratamento. `src/pipeline.py` mantém a mesma lógica para automação da API e do Docker:
 
 1. Calcula a taxa de ausência por célula e liga antes do preenchimento.
 2. Substitui leituras fora dos limites por valores ausentes. Os limites estão em `LIMITES` no próprio script.
@@ -265,6 +281,8 @@ Abra <http://localhost:8501>. A documentação da API fica em <http://localhost:
 │   ├── amostras_visao/       # PNGs sintéticos para testar a inspeção
 │   └── *.svg                # Capa e ilustrações do site
 ├── dados_sensores_vulcantech.csv
+├── notebooks/
+│   └── 01_tratamento_dados.ipynb # Tratamento explicado célula por célula
 ├── scripts/
 │   └── gerar_amostras_visao.py
 ├── src/
@@ -281,7 +299,8 @@ Abra <http://localhost:8501>. A documentação da API fica em <http://localhost:
 │   └── styles.css
 ├── Dockerfile
 ├── docker-compose.yml
-└── requirements.txt
+├── requirements.txt
+└── requirements-notebook.txt # Inclui o kernel Jupyter
 ```
 
 ## Parecer técnico e limitações
